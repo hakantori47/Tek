@@ -363,7 +363,7 @@ def main():
     
     # Kaydet
     print("\n💾 KAYDEDİLİYOR...")
-    if generator.save_m3u("ultimate_streams.m3u"):
+    if generator.save_m3u("DeaTHLesS-Tek-Paket.m3u"):
         print(f"\n🎉 TAMAMLANDI!")
         print(f"📁 Çıktı: ultimate_streams.m3u")
         print(f"📺 Toplam {total_channels} kanal eklendi")
