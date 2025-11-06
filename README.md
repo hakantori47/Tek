@@ -1,0 +1,2 @@
+# Tek
+Hepsi bir arada
