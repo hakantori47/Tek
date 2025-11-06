@@ -1,38 +1,50 @@
-name: Update M3U Playlist
+name: Update DeaTHLesS M3U
 
 on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  update-m3u:
+  update:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
+      uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
-        
+        python-version: '3.x'
+
     - name: Install dependencies
-      run: |
-        pip install requests urllib3
-        
+      run: pip install requests
+
     - name: Run M3U Generator
-      run: python "DeaTHLesS-Tek-Paket.py"
-      
-    - name: Commit and push
+      run: python DeaTHLesS-Tek-Paket.py
+
+    - name: Check if M3U file exists
+      id: check_m3u
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add -A
-        git commit -m "Update M3U playlist - $(date +'%Y-%m-%d %H:%M:%S')" || exit 0
+        if [ -f "DeaTHLesS-Tek-Paket.m3u" ]; then
+          echo "m3u_exists=true" >> $GITHUB_OUTPUT
+          echo "✅ M3U file found"
+        else
+          echo "m3u_exists=false" >> $GITHUB_OUTPUT
+          echo "❌ M3U file not found"
+        fi
+
+    - name: Commit M3U file
+      if: steps.check_m3u.outputs.m3u_exists == 'true'
+      run: |
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
+        git add DeaTHLesS-Tek-Paket.m3u
+        git commit -m "Update DeaTHLesS M3U - $(date)"
+        git pull origin main --rebase
         git push
