@@ -250,7 +250,8 @@ class DeaTHLesS_M3U_Generator:
         return successful_channels
 
     def save_m3u(self):
-        file_path = "/storage/emulated/0/DeaTHLesS-Tek-Paket.m3u"
+        # DÜZELTİLMİŞ SATIR: Android path yerine GitHub path
+        file_path = "DeaTHLesS-Tek-Paket.m3u"
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(self.m3u_content)
