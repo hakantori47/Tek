@@ -5,10 +5,11 @@ import urllib3
 import warnings
 import os
 
+# Uyarıları kapat
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings('ignore')
 
-class DeaTHLesS_M3U_Generator:
+class UltimateM3UGenerator:
     def __init__(self):
         self.m3u_content = "#EXTM3U\n"
         self.session = requests.Session()
@@ -16,19 +17,32 @@ class DeaTHLesS_M3U_Generator:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 Safari/537.36'
         })
         self.total_channels = 0
-    
+
     def get_html(self, url):
         try:
             response = self.session.get(url, timeout=20, verify=False)
             response.raise_for_status()
             return response.text
-        except Exception:
+        except Exception as e:
+            print(f"URL hatası: {str(e)[:100]}...")
             return None
-    
+
     def selcuksports_streams(self):
-        print("🔍 Scanning Selcuksports...")
+        """VERDİĞİNİZ PROXY'LER İLE SELCUKSPORTS"""
+        print("🔄 Selcuksports kanalları alınıyor...")
         
-        url = "https://seep.eu.org/https://www.selcuksportshd.is/"
+        # VERDİĞİNİZ PROXY LİSTESİ
+        proxies = [
+            "https://rapid-wave-c8e3.redfor14314.workers.dev/",
+            "https://proxy.ponelat.workers.dev/",
+            "https://proxy.freecdn.workers.dev/?url=",
+            "https://withered-shape-3305.vadimkantorov.workers.dev/?",
+            "https://wandering-sky-a896.cbracketdash.workers.dev/?",
+            "https://hello-world-aged-resonance-fc8f.bokaflix.workers.dev/?apiUrl=",
+            "https://cors.gerhut.workers.dev/?"
+        ]
+        
+        original_url = "https://www.selcuksportshd.is/"
         
         channel_ids = [
             "selcukbeinsports1", "selcukbeinsports2", "selcukbeinsports3",
@@ -42,13 +56,33 @@ class DeaTHLesS_M3U_Generator:
             "selcuktabiispor5"
         ]
         
-        html = self.get_html(url)
+        html = None
+        used_proxy = ""
+        
+        # TÜM PROXY'LERİ DENEYELİM
+        for proxy in proxies:
+            if "?url=" in proxy or "?apiUrl=" in proxy or proxy.endswith("?"):
+                # Query parametreli proxy'ler
+                test_url = proxy + original_url
+            else:
+                # Normal proxy'ler
+                test_url = proxy + original_url
+                
+            print(f"🔗 Proxy deneniyor: {proxy[:50]}...")
+            html = self.get_html(test_url)
+            if html:
+                used_proxy = proxy
+                print(f"✅ Proxy başarılı: {proxy[:50]}...")
+                break
+            time.sleep(1)
+        
         if not html:
-            print("❌ Selcuksports: Main page not available")
+            print("❌ Selcuksports: Tüm proxy'lere erişilemiyor")
             return 0
         
         active_domain = ""
         
+        # ORJİNAL REGEX PATTERN'LER
         section_match = re.search(r'data-device-mobile[^>]*>(.*?)</div>\s*</div>', html, re.DOTALL)
         if section_match:
             link_match = re.search(r'href=["\'](https?://[^"\']*selcuksportshd[^"\']+)["\']', section_match.group(1))
@@ -56,52 +90,91 @@ class DeaTHLesS_M3U_Generator:
                 active_domain = link_match.group(1)
         
         if not active_domain:
-            print("❌ Selcuksports: Active domain not found")
-            return 0
+            # ALTERNATİF ARAMA
+            link_match = re.search(r'href=["\'](https?://[^"\']*selcuksportshd[^"\']+)["\']', html)
+            if link_match:
+                active_domain = link_match.group(1)
         
-        print(f"✅ Selcuksports domain: {active_domain}")
+        if not active_domain:
+            active_domain = original_url
         
-        domain_html = self.get_html(active_domain)
+        print(f"🌐 Aktif domain: {active_domain}")
+        
+        # AKTİV DOMAİN'E PROXY UYGULA
+        if used_proxy:
+            if "?url=" in used_proxy or "?apiUrl=" in used_proxy or used_proxy.endswith("?"):
+                domain_to_fetch = used_proxy + active_domain
+            else:
+                domain_to_fetch = used_proxy + active_domain
+        else:
+            domain_to_fetch = active_domain
+            
+        print(f"🔗 Fetch edilecek: {domain_to_fetch[:80]}...")
+        
+        domain_html = self.get_html(domain_to_fetch)
         if not domain_html:
-            print("❌ Selcuksports: Domain page not available")
+            print("❌ Selcuksports: Domain sayfası erişilemiyor")
             return 0
         
         player_links = re.findall(r'data-url="(https?://[^"]+id=[^"]+)"', domain_html)
         
         if not player_links:
-            print("❌ Selcuksports: Player links not found")
+            # ALTERNATİF PATTERN
+            player_links = re.findall(r'data-url=["\'](https?://[^"\'?]+?id=[^"\'&]+)["\']', domain_html)
+        
+        if not player_links:
+            print("❌ Selcuksports: Player linkleri bulunamadı")
             return 0
         
+        print(f"🔗 Bulunan player linkleri: {len(player_links)}")
+        
         found_channels = 0
+        base_stream_url = None
         
         for player_url in player_links:
-            html_player = self.get_html(player_url)
+            print(f"🔍 Player URL deneniyor: {player_url[:50]}...")
+            
+            # PLAYER URL'YE PROXY UYGULA
+            if used_proxy:
+                if "?url=" in used_proxy or "?apiUrl=" in used_proxy or used_proxy.endswith("?"):
+                    player_url_to_fetch = used_proxy + player_url
+                else:
+                    player_url_to_fetch = used_proxy + player_url
+            else:
+                player_url_to_fetch = player_url
+                
+            html_player = self.get_html(player_url_to_fetch)
             if html_player:
                 stream_match = re.search(r'this\.baseStreamUrl\s*=\s*[\'"](https://[^\'"]+)[\'"]', html_player)
                 if stream_match:
                     base_stream_url = stream_match.group(1)
-                    
-                    for cid in channel_ids:
-                        stream_url = base_stream_url + cid + "/playlist.m3u8"
-                        
-                        clean_name = re.sub(r'^selcuk', '', cid, flags=re.IGNORECASE)
-                        clean_name = clean_name.upper() + " HD"
-                        channel_name = "TR:" + clean_name
-                        
-                        self.m3u_content += f'#EXTINF:-1 tvg-id="" tvg-name="{channel_name}" tvg-logo="https://i.hizliresim.com/b6xqz10.jpg" group-title="TURKIYE",{channel_name}\n'
-                        self.m3u_content += f'#EXTVLCOPT:http-referrer={active_domain}\n'
-                        self.m3u_content += f'{stream_url}\n'
-                        
-                        found_channels += 1
-                        print(f"✅ Selcuksports: {channel_name}")
-                    
+                    print(f"✅ Base stream URL bulundu: {base_stream_url[:50]}...")
                     break
         
-        print(f"📊 Selcuksports: {found_channels} channels added")
+        if not base_stream_url:
+            print("❌ Selcuksports: Base stream URL bulunamadı")
+            return 0
+        
+        # KANALLARI EKLE
+        for cid in channel_ids:
+            stream_url = base_stream_url + cid + "/playlist.m3u8"
+            
+            clean_name = re.sub(r'^selcuk', '', cid, flags=re.IGNORECASE)
+            clean_name = clean_name.upper() + " HD"
+            channel_name = "TR:" + clean_name
+            
+            self.m3u_content += f'#EXTINF:-1 tvg-id="" tvg-name="{channel_name}" tvg-logo="https://i.hizliresim.com/b6xqz10.jpg" group-title="SELCUKSPORTS",{channel_name}\n'
+            self.m3u_content += f'#EXTVLCOPT:http-referrer={active_domain}\n'
+            self.m3u_content += f'{stream_url}\n'
+            
+            found_channels += 1
+            print(f"✅ {channel_name}")
+        
+        print(f"📊 Selcuksports: {found_channels} kanal eklendi")
         return found_channels
 
-    def birazcikspor_streams(self):
-        print("\n🔍 Scanning Birazcikspor...")
+    def deathless_streams(self):
+        print("🔄 DeaTHLesS kanalları alınıyor...")
         
         active_domain = None
         for i in range(42, 200):
@@ -115,14 +188,14 @@ class DeaTHLesS_M3U_Generator:
                 continue
         
         if not active_domain:
-            print("❌ Birazcikspor: No active domain found")
+            print("❌ DeaTHLesS: Aktif domain bulunamadı")
             return 0
         
         try:
             response = requests.get(active_domain, timeout=10)
             html = response.text
         except:
-            print("❌ Birazcikspor: Main page not accessible")
+            print("❌ DeaTHLesS: Ana sayfa erişilemiyor")
             return 0
         
         first_id_match = re.search(r'<iframe[^>]+id="matchPlayer"[^>]+src="event\.html\?id=([^"]+)"', html)
@@ -139,7 +212,7 @@ class DeaTHLesS_M3U_Generator:
                 pass
         
         if not base_url:
-            print("❌ Birazcikspor: Base URL not found")
+            print("❌ DeaTHLesS: Base URL bulunamadı")
             return 0
         
         channels = [
@@ -172,13 +245,6 @@ class DeaTHLesS_M3U_Generator:
             ["Tabii 8 HD", "androstreamlivetb8", "https://i.hizliresim.com/8xzjgqv.jpg"],
             ["Exxen HD", "androstreamliveexn", "https://i.hizliresim.com/8xzjgqv.jpg"],
             ["Exxen 1 HD", "androstreamliveexn1", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 2 HD", "androstreamliveexn2", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 3 HD", "androstreamliveexn3", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 4 HD", "androstreamliveexn4", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 5 HD", "androstreamliveexn5", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 6 HD", "androstreamliveexn6", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 7 HD", "androstreamliveexn7", "https://i.hizliresim.com/8xzjgqv.jpg"],
-            ["Exxen 8 HD", "androstreamliveexn8", "https://i.hizliresim.com/8xzjgqv.jpg"],
         ]
         
         successful_channels = 0
@@ -188,93 +254,121 @@ class DeaTHLesS_M3U_Generator:
             try:
                 response = requests.head(stream_url, timeout=5)
                 if response.status_code == 200:
-                    self.m3u_content += f'#EXTINF:-1 tvg-id="sport.tr" tvg-name="TR:{channel[0]}" tvg-logo="{channel[2]}" group-title="TURKIYE DEATHLESS",TR:{channel[0]}\n'
+                    self.m3u_content += f'#EXTINF:-1 tvg-id="sport.tr" tvg-name="TR:{channel[0]}" tvg-logo="{channel[2]}" group-title="DEATHLESS",TR:{channel[0]}\n'
                     self.m3u_content += f"{stream_url}\n"
                     successful_channels += 1
-                    print(f"✅ Birazcikspor: {channel[0]}")
+                    print(f"✅ {channel[0]}")
                 else:
-                    print(f"❌ Birazcikspor: {channel[0]}")
+                    print(f"❌ {channel[0]}")
             except:
-                print(f"❌ Birazcikspor: {channel[0]}")
+                print(f"❌ {channel[0]}")
         
-        print(f"📊 Birazcikspor: {successful_channels} channels added")
+        print(f"📊 DeaTHLesS: {successful_channels} kanal eklendi")
         return successful_channels
 
-    def bilyonersport_streams(self):
-        print("\n🔍 Scanning Bilyonersport...")
+    def bilyoner_streams(self):
+        print("🔄 Bilyoner kanalları alınıyor...")
         
-        active_domain = None
+        aktif_domain = None
         for i in range(1, 200):
-            domain = f"https://bilyonersport{i}.com/"
+            domain = f'https://bilyonersport{i}.com/'
             try:
                 r = requests.get(domain, timeout=3)
                 if r.status_code == 200 and "channel-list" in r.text:
-                    active_domain = domain
+                    print(f'🌐 Aktif domain bulundu: {domain}')
+                    aktif_domain = domain
                     break
             except:
                 pass
         
-        if not active_domain:
-            print("❌ Bilyonersport: No active domain found")
+        if not aktif_domain:
+            print("❌ Bilyoner: Aktif domain bulunamadı")
             return 0
         
-        print(f"✅ Bilyonersport domain: {active_domain}")
-        
         try:
-            r = requests.get(active_domain, timeout=5)
+            r = requests.get(aktif_domain, timeout=5)
             html = r.text
-        except:
-            print("❌ Bilyonersport: Main page not accessible")
-            return 0
-        
-        hrefs = re.findall(r'href="([^"]+index\.m3u8[^"]*)"', html)
-        names = re.findall(r'<div class="channel-name">(.*?)</div>', html)
-
-        if not hrefs or not names:
-            print("❌ Bilyonersport: No channels found")
-            return 0
-
-        successful_channels = 0
-        for name, link in zip(names, hrefs):
-            clean_name = name.strip()
-            clean_link = link.strip()
+            hrefs = re.findall(r'href="(.*?index\.m3u8.*?)"', html)
+            names = re.findall(r'<div class="channel-name">(.*?)</div>', html)
             
-            self.m3u_content += f'#EXTINF:-1 tvg-name="{clean_name}" group-title="BilyonerSport",{clean_name}\n'
-            self.m3u_content += f'#EXTVLCOPT:http-referrer={active_domain}\n'
-            self.m3u_content += f"{clean_link}\n\n"
+            if not hrefs or not names:
+                print("❌ Bilyoner: Kanal bulunamadı")
+                return 0
             
-            successful_channels += 1
-            print(f"✅ Bilyonersport: {clean_name}")
+            kanallar = []
+            for name, link in zip(names, hrefs):
+                kanallar.append((name.strip(), link.strip()))
+            
+            successful_channels = 0
+            for name, url in kanallar:
+                self.m3u_content += f'#EXTINF:-1 tvg-name="{name}" group-title="BILYONER",{name}\n'
+                self.m3u_content += f'#EXTVLCOPT:http-referrer={aktif_domain}\n'
+                self.m3u_content += f"{url}\n\n"
+                successful_channels += 1
+                print(f"✅ {name}")
+            
+            print(f"📊 Bilyoner: {successful_channels} kanal eklendi")
+            return successful_channels
+            
+        except Exception as e:
+            print(f"❌ Bilyoner hatası: {e}")
+            return 0
 
-        print(f"📊 Bilyonersport: {successful_channels} channels added")
-        return successful_channels
-
-    def save_m3u(self):
-        # DÜZELTİLMİŞ SATIR: Android path yerine GitHub path
-        file_path = "DeaTHLesS-Tek-Paket.m3u"
+    def save_m3u(self, filename="ultimate_streams.m3u"):
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(filename, 'w', encoding='utf-8') as f:
                 f.write(self.m3u_content)
-            print(f"\n💾 M3U file saved: {file_path}")
+            print(f"💾 M3U dosyası kaydedildi: {filename}")
+            print(f"📈 Toplam kanal sayısı: {self.total_channels}")
             return True
         except Exception as e:
-            print(f"❌ Save error: {str(e)}")
+            print(f"❌ Kaydetme hatası: {str(e)}")
             return False
 
 def main():
-    print("🚀 Starting DeaTHLesS Multi-Source Bot...")
-    generator = DeaTHLesS_M3U_Generator()
+    print("🎯 ULTIMATE M3U GENERATOR BAŞLATILIYOR...")
+    print("=" * 60)
     
+    generator = UltimateM3UGenerator()
     total_channels = 0
-    total_channels += generator.selcuksports_streams()
-    total_channels += generator.birazcikspor_streams()
-    total_channels += generator.bilyonersport_streams()
     
-    if total_channels > 0:
-        generator.save_m3u()
-        print(f"\n🎯 Process completed! Total channels: {total_channels}")
+    # 1. Selcuksports - VERDİĞİNİZ PROXY'LER İLE
+    print("\n1. SELCUKSPORTS")
+    print("-" * 30)
+    selcuk_count = generator.selcuksports_streams()
+    total_channels += selcuk_count
+    
+    # 2. DeaTHLesS
+    print("\n2. DEATHLESS")
+    print("-" * 30)
+    deathless_count = generator.deathless_streams()
+    total_channels += deathless_count
+    
+    # 3. Bilyoner
+    print("\n3. BILYONER")
+    print("-" * 30)
+    bilyoner_count = generator.bilyoner_streams()
+    total_channels += bilyoner_count
+    
+    generator.total_channels = total_channels
+    
+    # Sonuç
+    print("\n" + "=" * 60)
+    print("📊 SONUÇLAR")
+    print("-" * 30)
+    print(f"Selcuksports: {selcuk_count} kanal")
+    print(f"DeaTHLesS: {deathless_count} kanal")
+    print(f"Bilyoner: {bilyoner_count} kanal")
+    print(f"TOPLAM: {total_channels} kanal")
+    
+    # Kaydet
+    print("\n💾 KAYDEDİLİYOR...")
+    if generator.save_m3u("ultimate_streams.m3u"):
+        print(f"\n🎉 TAMAMLANDI!")
+        print(f"📁 Çıktı: ultimate_streams.m3u")
+        print(f"📺 Toplam {total_channels} kanal eklendi")
     else:
-        print("💥 No channels found from any source!")
+        print("❌ Kayıt başarısız!")
 
 if __name__ == "__main__":
     main()
