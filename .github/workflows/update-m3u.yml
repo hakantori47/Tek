@@ -27,7 +27,7 @@ jobs:
         pip install requests urllib3
         
     - name: Run M3U Generator
-      run: python "Deathless"
+      run: python "DeaTHLesS-Tek-Paket.py"
       
     - name: Commit and push
       run: |
