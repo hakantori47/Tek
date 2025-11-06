@@ -1,0 +1,38 @@
+name: Update M3U Playlist
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-m3u:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        pip install requests urllib3
+        
+    - name: Run M3U Generator
+      run: python "Deathless"
+      
+    - name: Commit and push
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add -A
+        git commit -m "Update M3U playlist - $(date +'%Y-%m-%d %H:%M:%S')" || exit 0
+        git push
